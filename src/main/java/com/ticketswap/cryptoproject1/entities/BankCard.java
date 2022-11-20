@@ -17,7 +17,7 @@ public class BankCard {
     private int bankCardId;
 
     @Convert(converter = Encryptor.class)
-    private String cardHolder;
+    private String cardHolderName;
 
     @Convert(converter = Encryptor.class)
     private Integer cvv;
@@ -26,7 +26,10 @@ public class BankCard {
     private Integer cardNumber;
 
     @Convert(converter = Encryptor.class)
-    private LocalDate expirationDate;
+    private LocalDate expiryDate;
+
+    @Convert(converter = Encryptor.class)
+    private double balance;
 
 
     @ManyToOne

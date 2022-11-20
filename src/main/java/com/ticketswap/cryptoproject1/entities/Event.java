@@ -22,4 +22,11 @@ public class Event {
 
     private LocalDate date;
 
+    public String toString() {
+        return "event id: " + getEventId() +
+                ", event name: " + getEventName() +
+                ", event date: " + getDate() +
+                ", event location: " + getEventName() +
+                ", event venue: " + getVenue();
+    }
 }

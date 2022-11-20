@@ -11,5 +11,8 @@ import java.util.List;
 public interface UserRepository extends JpaRepository<Users, Integer> {
 
     @Query("SELECT t FROM Users t WHERE t.email = ?1 AND t.password = ?2")
-    List<Users> findByEmail(String email, String password);
+    List<Users> findByEmailPassword(String email, String password);
+
+    @Query("SELECT t FROM Users t WHERE t.email = ?1")
+    List<Users> findByEmail(String email);
 }

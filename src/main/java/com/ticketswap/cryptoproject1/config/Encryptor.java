@@ -10,7 +10,6 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.SecretKeySpec;
 import javax.persistence.AttributeConverter;
 import javax.persistence.Converter;
-import java.io.Serializable;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.NoSuchAlgorithmException;
@@ -18,10 +17,9 @@ import java.util.Base64;
 
 @Configuration
 @Converter
-public class Encryptor implements AttributeConverter<Object, String> {
-
+public class Encryptor implements AttributeConverter<Object, String>{
     @Value("${encryption.key}")
-    private  String keyEncrypt;
+    private String keyEncrypt;
     private final String cipherEncrypt = "AES";
 
     private  Key key;

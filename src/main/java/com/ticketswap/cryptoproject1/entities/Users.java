@@ -16,15 +16,15 @@ public class Users {
     private int userId;
 
     private String userName;
-
-    private String password;
-
-    private String userSalt;
-
     private String email;
-
-    private int phone;
-
+    private String password;
     private UserType userType;
-
+    private String firstName;
+    private String lastName;
+    private String address;
+    private String city;
+    private String country;
+    private String postalCode;
+    private String phoneNumber;
+    private String salt;
 }
