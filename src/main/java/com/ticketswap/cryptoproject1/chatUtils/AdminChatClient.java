@@ -1,5 +1,6 @@
 package com.ticketswap.cryptoproject1.chatUtils;
 
+import com.ticketswap.cryptoproject1.config.RSA;
 import com.ticketswap.cryptoproject1.entities.UserType;
 
 import java.io.IOException;
@@ -9,11 +10,18 @@ import java.net.UnknownHostException;
 public class AdminChatClient implements ChatClient {
     private final String hostname;
     private final int port;
-    private String userName;
+    private String userName = "Admin";
 
+    private RSA rsa = new RSA();
+
+
+    public RSA getRSA() {
+        return rsa;
+    }
     public AdminChatClient(String hostname, int port) {
         this.hostname = hostname;
         this.port = port;
+        rsa.initFromStrings();
     }
 
     public void execute() {

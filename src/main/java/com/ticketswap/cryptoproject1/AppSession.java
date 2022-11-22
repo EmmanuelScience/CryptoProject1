@@ -1,14 +1,19 @@
 package com.ticketswap.cryptoproject1;
 
+import com.ticketswap.cryptoproject1.config.OTP;
 import com.ticketswap.cryptoproject1.entities.*;
 import com.ticketswap.cryptoproject1.repository.*;
+import com.ticketswap.cryptoproject1.utils.EmailUtility;
 import com.ticketswap.cryptoproject1.utils.InputHelper;
+import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Configurable;
 import org.springframework.stereotype.Service;
 
+import javax.mail.MessagingException;
 import java.security.GeneralSecurityException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static com.ticketswap.cryptoproject1.utils.HashFunction.hashPassword;
@@ -32,7 +37,8 @@ public class AppSession {
 
     public static String keyPassword;
 
-    public void mainMenu() throws GeneralSecurityException {
+    @SneakyThrows
+    public void mainMenu() {
         System.out.println(
                 " 1. Search Events \n" +
                 " 2. Register User \n" +
@@ -343,7 +349,7 @@ public class AppSession {
         bankCardRepository.save(bankCard);
     }
 
-    public  void loginUser() throws GeneralSecurityException {
+    public  void loginUser() throws GeneralSecurityException, MessagingException {
         boolean exit = false;
         while (!exit) {
             exit = true;
@@ -354,13 +360,30 @@ public class AppSession {
                 Users user = users.get(0);
                 String hashedPassword = hashPassword(password + user.getSalt());
                 if (user.getPassword().equals(hashedPassword)) {
-                    System.out.println("Login successful");
-                    currentUser = user;
                     checkIfAdmin(user);
                     if (isAdministrator) {
+                        currentUser = user;
+                        System.out.println("Login successful");
                         adminMenu();
                     } else {
-                        userMenu();
+                        System.out.println("Wait for OTP");
+                        OTP otp = new OTP();
+                        String code = otp.generate(6);
+                        EmailUtility emailUtility = new EmailUtility();
+                        LocalDateTime now = LocalDateTime.now();
+                        emailUtility.sendMail("Login code", email, code);
+                        String inputCode = InputHelper.getStringInput("Please enter code sent to your email: ");
+                        if (LocalDateTime.now().isAfter(now.plusMinutes(5))) {
+                            System.out.println("Code expired");
+                            exit = false;
+                        } else if (inputCode.equals(code)) {
+                            currentUser = user;
+                            System.out.println("Login successful");
+                            userMenu();
+                        } else {
+                            System.out.println("Invalid code");
+                            exit = false;
+                        }
                     }
                 } else {
                     System.out.println("Invalid password");

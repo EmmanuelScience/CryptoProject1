@@ -1,5 +1,7 @@
 package com.ticketswap.cryptoproject1.chatUtils;
 
+import lombok.SneakyThrows;
+
 import java.io.*;
 import java.net.*;
 
@@ -12,13 +14,10 @@ import java.net.*;
  */
 public class ReadThread extends Thread {
     private BufferedReader reader;
-    private Socket socket;
-    private ChatClient client;
+    private final ChatClient client;
 
     public ReadThread(Socket socket, ChatClient client) {
-        this.socket = socket;
         this.client = client;
-
         try {
             InputStream input = socket.getInputStream();
             reader = new BufferedReader(new InputStreamReader(input));
@@ -28,11 +27,21 @@ public class ReadThread extends Thread {
         }
     }
 
+    @SneakyThrows
     public void run() {
-        while (true) {
+        try {
+            String message = reader.readLine();
+            String userName = message.split(" ")[0];
+            String publicKey = message.split(" ")[1];
+            client.getRSA().setPeerPublicKey(publicKey);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        while (!WriteThread.EXIT) {
             try {
                 String response = reader.readLine();
-                System.out.println("\n" + response);
+                System.out.println("\n" + client.getRSA().decrypt(response));
 
                 // prints the username after displaying the server's message
                 if (client.getUserName() != null) {

@@ -12,7 +12,7 @@ import java.util.*;
  */
 public class ChatServer extends Thread {
     private int port;
-    private Queue<UserThread> waitingUsers;
+    private Queue<UserThread> waitingUsers = new LinkedList<>();
     private String adminName;
     private String currentChatPartner;
     private UserThread currentChatPartnerThread;
@@ -28,15 +28,17 @@ public class ChatServer extends Thread {
             while (true) {
                 Socket socket = serverSocket.accept();
                 if(adminThread == null) {
+                    System.out.println("New admin connected");
                     adminThread = new UserThread(socket, this);
                     adminThread.start();
                 }
-                else if (currentChatPartner == null) {
+                else if (this.currentChatPartnerThread == null) {
                     System.out.println("New user connected");
                     UserThread newUser = new UserThread(socket, this);
-                    currentChatPartnerThread = newUser;
+                    this.currentChatPartnerThread = newUser;
                     newUser.start();
                 } else {
+                    System.out.println("New user waiting");
                     UserThread newUser = new UserThread(socket, this);
                     waitingUsers.add(newUser);
                     newUser.sendMessage("You are in the waiting queue", true);
@@ -71,6 +73,7 @@ public class ChatServer extends Thread {
     }
 
     public void setCurrentChatPartnerThread(UserThread currentChatPartnerThread) {
+        System.out.println("Setting current chat partner thread"+currentChatPartnerThread.getName());
         this.currentChatPartnerThread = currentChatPartnerThread;
     }
 
@@ -95,9 +98,11 @@ public class ChatServer extends Thread {
     }
 
     public void broadcast(String message, UserThread excludeUser) throws IOException {
-        if (excludeUser == adminThread) {
+        if (this.currentChatPartnerThread != null && this.currentChatPartnerThread != excludeUser)
+            System.out.println("Broadcasting message: "+message + " from user: "+excludeUser.getName() + " to user: "+this.currentChatPartnerThread.getName());
+        if (excludeUser == adminThread && currentChatPartnerThread != null) {
             currentChatPartnerThread.sendMessage(message, false);
-        } else if (excludeUser == currentChatPartnerThread) {
+        } else if (excludeUser == currentChatPartnerThread && adminThread != null) {
             adminThread.sendMessage(message, false);
         }
     }

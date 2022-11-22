@@ -1,5 +1,6 @@
 package com.ticketswap.cryptoproject1.chatUtils;
 
+import com.ticketswap.cryptoproject1.config.RSA;
 import com.ticketswap.cryptoproject1.entities.UserType;
 
 import java.net.*;
@@ -9,10 +10,17 @@ public class UserChatClient implements ChatClient {
     private final String hostname;
     private final int port;
     private String userName;
+    public RSA rsa = new RSA();
 
-    public UserChatClient(String hostname, int port) {
+    public UserChatClient(String hostname, int port, String userName) {
         this.hostname = hostname;
         this.port = port;
+        this.userName = userName;
+        rsa.initFromStrings();
+    }
+
+    public RSA getRSA() {
+        return rsa;
     }
 
     public void execute() {
@@ -40,7 +48,7 @@ public class UserChatClient implements ChatClient {
     public static void main(String[] args) {
         String hostname = "localhost";
         int port = 8080;
-        UserChatClient client = new UserChatClient(hostname, port);
+        UserChatClient client = new UserChatClient(hostname, port, "User"+(int)(Math.random()*100));
         client.execute();
     }
 

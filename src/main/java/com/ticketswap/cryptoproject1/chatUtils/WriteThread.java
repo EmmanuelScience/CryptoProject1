@@ -1,5 +1,8 @@
 package com.ticketswap.cryptoproject1.chatUtils;
 
+import com.ticketswap.cryptoproject1.config.RSA;
+import lombok.SneakyThrows;
+
 import java.io.Console;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -9,8 +12,9 @@ import java.util.Scanner;
 
 public class WriteThread extends Thread {
     private PrintWriter writer;
-    private Socket socket;
-    private ChatClient client;
+    private final Socket socket;
+    private final ChatClient client;
+    public static boolean EXIT = false;
 
     public WriteThread(Socket socket, ChatClient client) {
         this.socket = socket;
@@ -25,31 +29,24 @@ public class WriteThread extends Thread {
         }
     }
 
+    @SneakyThrows
     public void run() {
-        System.out.println("Enter your name: ");
         Scanner scanner = new Scanner(System.in);
-        String userName;
-        while (true) {
-            userName = scanner.nextLine();
-            if (userName != null && !userName.isEmpty()) {
-                break;
-            }
-        }
-        client.setUserName(userName);
-        writer.println(userName);
+        String userName_PubKey = client.getUserName() + " " + client.getRSA().getPublicKeyString();
+        writer.println(userName_PubKey);
 
         String text;
-
         do {
-            System.out.print("[" + userName + "]: ");
+            System.out.print("[" + client.getUserName() + "]: ");
             text = scanner.nextLine();
-            writer.println(text);
+            String encryptedText = client.getRSA().encrypt(text);
+            writer.println(encryptedText);
         } while (!text.equals("bye"));
+        EXIT = true;
 
         try {
             socket.close();
         } catch (IOException ex) {
-
             System.out.println("Error writing to server: " + ex.getMessage());
         }
     }

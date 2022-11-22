@@ -29,10 +29,11 @@ public class UserThread extends Thread {
             writer = new PrintWriter(output, true);
 
 
-            String userName = reader.readLine();
+            String msg = reader.readLine();
+            String userName = msg.split(" ")[0];
             server.setUserName(userName);
 
-            String serverMessage = "New user connected: " + userName;
+            String serverMessage = msg;
             server.broadcast(serverMessage, this);
 
             String clientMessage;
@@ -44,9 +45,10 @@ public class UserThread extends Thread {
 
             } while (!clientMessage.equals("bye"));
 
+            checkWaitingQueue();
             server.removeUser();
             socket.close();
-            checkWaitingQueue();
+
 
         } catch (IOException ex) {
             System.out.println("Error in UserThread: " + ex.getMessage());
@@ -57,8 +59,9 @@ public class UserThread extends Thread {
     public void checkWaitingQueue() {
         if(server.getCurrentChatPartner() != null && server.getWaitingUsers().size() > 0) {
             UserThread chatPartner = server.getWaitingUsers().poll();
+            System.out.println("Chat partner found: " );
             server.setCurrentChatPartnerThread(chatPartner);
-            server.getCurrentChatPartnerThread().start();
+            chatPartner.start();
             server.getCurrentChatPartnerThread().writer.println("You are now chatting with " + server.getCurrentChatPartner());
         } else {
             writer.println("Waiting for a chat partner...");
