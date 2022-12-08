@@ -27,4 +27,12 @@ public class Users {
     private String postalCode;
     private String phoneNumber;
     private String salt;
+
+    @Column(columnDefinition = "LONGTEXT")
+    @Convert(converter = Encryptor.class)
+    private String privateKey;
+    @Column(columnDefinition = "LONGTEXT")
+    private String publicKey;
+    @Column(columnDefinition = "LONGTEXT")
+    private String certificate;
 }

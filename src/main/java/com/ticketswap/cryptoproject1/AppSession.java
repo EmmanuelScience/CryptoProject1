@@ -1,6 +1,8 @@
 package com.ticketswap.cryptoproject1;
 
+import com.ticketswap.cryptoproject1.config.DigitalSignature;
 import com.ticketswap.cryptoproject1.config.OTP;
+import com.ticketswap.cryptoproject1.config.RSA;
 import com.ticketswap.cryptoproject1.entities.*;
 import com.ticketswap.cryptoproject1.repository.*;
 import com.ticketswap.cryptoproject1.utils.EmailUtility;
@@ -11,9 +13,14 @@ import org.springframework.beans.factory.annotation.Configurable;
 import org.springframework.stereotype.Service;
 
 import javax.mail.MessagingException;
+import java.io.ByteArrayInputStream;
 import java.security.GeneralSecurityException;
+import java.security.cert.CertPathValidatorResult;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 import static com.ticketswap.cryptoproject1.utils.HashFunction.hashPassword;
@@ -32,10 +39,15 @@ public class AppSession {
     @Autowired
     private  EventRepository eventRepository;
 
+    @Autowired
+    private TicketRequestRepository ticketRequestRepository;
+
     private Users currentUser;
     private boolean isAdministrator = false;
 
     public static String keyPassword;
+
+    RSA rsa = new RSA();
 
     @SneakyThrows
     public void mainMenu() {
@@ -81,7 +93,7 @@ public class AppSession {
                     buyTicket(selectEvent());
                     break;
                 case 2:
-                    sellTicket(selectEvent());
+                    uploadTicket(selectEvent());
                     break;
                 case 3:
                     goToMenu();
@@ -124,7 +136,12 @@ public class AppSession {
         return events;
     }
 
-    public void sellTicket(Event event) throws GeneralSecurityException {
+    /**
+     * Allows a user to upload a ticket
+     * @param event the event the ticket is for
+     */
+    @SneakyThrows
+    public void uploadTicket(Event event) {
         if (currentUser == null) {
             System.out.println("Please login or Register to sell tickets");
             mainMenu();
@@ -132,17 +149,22 @@ public class AppSession {
         }
         double ticketPrice = InputHelper.getDoubleInput("Enter ticket price: ");
         String ticketCode = InputHelper.getStringInput("Enter ticket code: ");
-        int ticketQuantity = InputHelper.getIntInput("Enter ticket quantity: ");
-        requestBankCard();
-        Ticket ticket = new Ticket();
-        ticket.setEvent(event);
-        ticket.setTicketPrice(ticketPrice);
-        ticket.setTicketCode(ticketCode);
-        ticket.setTicketOwner(currentUser);
-        ticket.setQuantity(ticketQuantity);
-        ticketRepository.save(ticket);
-        System.out.println("Ticket added successfully");
-        myTickets();
+        boolean verified = verifyTicketCode(ticketCode);
+        if (verified) {
+            int ticketQuantity = InputHelper.getIntInput("Enter ticket quantity: ");
+            requestBankCard();
+            Ticket ticket = new Ticket();
+            ticket.setEvent(event);
+            ticket.setCanBeSold(true);
+            ticket.setTicketPrice(ticketPrice);
+            ticket.setTicketOwner(currentUser);
+            ticket.setQuantity(ticketQuantity);
+            ticketRepository.save(ticket);
+            System.out.println("Ticket added successfully");
+            myTickets();
+        } else {
+            System.out.println("Ticket code is not valid");
+        }
         goToMenu();
     }
 
@@ -159,8 +181,12 @@ public class AppSession {
         }
     }
 
+    private boolean verifyTicketCode(String ticketCode) {
+        return ticketCode.length() > 0;
+    }
 
-    public void buyTicket(Event event) throws GeneralSecurityException {
+    @SneakyThrows
+    public void buyTicket(Event event) {
         if (currentUser == null) {
             System.out.println("Please login or Register to buy tickets");
             mainMenu();
@@ -171,7 +197,8 @@ public class AppSession {
             System.out.println("No tickets found");
         } else {
             for (Ticket ticket : tickets) {
-                System.out.println(
+                if (ticket.isCanBeSold())
+                    System.out.println(
                         " ticket id: " + ticket.getTicketId() +
                         " ticket price: " + ticket.getTicketPrice() +
                         " ticket code: " + ticket.getTicketCode() +
@@ -192,22 +219,26 @@ public class AppSession {
                     System.out.println("Not enough tickets");
                 } else {
                     requestBankCard();
-                    if (simulatePayment(quantity * ticket.getTicketPrice(), ticket.getTicketOwner())) {
-                        ticket.setQuantity(ticket.getQuantity() - quantity);
-                        if(ticket.getQuantity() == 0) {
-                            ticketRepository.delete(ticket);
-                        } else {
-                            ticketRepository.save(ticket);
-                        }
-                        Ticket newTicket = new Ticket();
-                        newTicket.setEvent(event);
-                        newTicket.setTicketPrice(ticket.getTicketPrice());
-                        newTicket.setTicketCode(ticket.getTicketCode());
-                        newTicket.setTicketOwner(currentUser);
-                        newTicket.setQuantity(quantity);
-                        ticketRepository.save(newTicket);
-                        myTickets();
-                    }
+                    EmailUtility emailUtility = new EmailUtility();
+                    //Ticket request
+                    String publicKey = currentUser.getPublicKey();
+                    byte[] signature = DigitalSignature.generateSignatureForMessage("C:\\chomsky\\Academics\\Fall-2022\\crypto\\CryptoProject1\\src\\A\\top.key", publicKey, keyPassword);
+                    byte[] certificate = DigitalSignature.readCertFromFile("C:\\chomsky\\Academics\\Fall-2022\\crypto\\CryptoProject1\\src\\A\\top.crt").getEncoded();
+                    TicketRequest ticketRequest = new TicketRequest();
+                    ticketRequest.setCertificate(certificate);
+                    ticketRequest.setSignature(signature);
+                    ticketRequest.setAliasBuyer(currentUser.getUserName());
+                    ticketRequest.setAliasSeller(ticket.getTicketOwner().getUserName());
+                    ticketRequest.setTicketId(ticketId);
+                    ticketRequest.setQuantity(quantity);
+                    ticketRequest.setEmailBuyer(currentUser.getEmail());
+                    ticketRequest.setEmailSeller(ticket.getTicketOwner().getEmail());
+                    ticketRequest.setPublicKey(publicKey);
+                    ticketRequestRepository.save(ticketRequest);
+                    String  subject =currentUser.getUserName() + " wants to buy your ticket";
+                    String  body = "Hi " + ticket.getTicketOwner().getFirstName() + ", " + currentUser.getUserName() +
+                            ". Please log in and accept the request";
+                    emailUtility.sendMail(subject,ticket.getTicketOwner().getEmail(), body);
                 }
             }
         }
@@ -275,6 +306,68 @@ public class AppSession {
         }
     }
 
+    @SneakyThrows
+    public void sellTicket() {
+        if (currentUser == null) {
+            System.out.println("Please login or Register to sell tickets");
+            mainMenu();
+            return;
+        }
+        List<TicketRequest> ticketRequests = ticketRequestRepository.findByEmailSeller(currentUser.getEmail());
+        if (ticketRequests.size() == 0) {
+            System.out.println("No ticket requests found");
+        } else {
+            for (TicketRequest ticketRequest : ticketRequests) {
+                Ticket ticket = ticketRepository.findById(ticketRequest.getTicketId()).isPresent() ?
+                        ticketRepository.findById(ticketRequest.getTicketId()).get() : null;
+                //Verifying public key
+                boolean isVerified = DigitalSignature.verifySignature(ticketRequest.getCertificate(), ticketRequest.getSignature(), ticketRequest.getPublicKey().getBytes());
+                //verify certificate chain
+                X509Certificate rootCert = DigitalSignature.readCertFromFile("C:\\chomsky\\Academics\\Fall-2022\\crypto\\CryptoProject1\\src\\A\\root.crt");
+                X509Certificate intermediateCert = DigitalSignature.readCertFromFile("C:\\chomsky\\Academics\\Fall-2022\\crypto\\CryptoProject1\\src\\A\\middle.crt");
+                CertificateFactory fac = CertificateFactory.getInstance("X509");
+                X509Certificate endCert = (X509Certificate) fac.generateCertificate(new ByteArrayInputStream(ticketRequest.getCertificate()));
+                List<X509Certificate> certList = new ArrayList<>();
+                certList.add(rootCert);
+                certList.add(intermediateCert);
+                certList.add(endCert);
+                try {
+                    DigitalSignature.verifyCertificateChain(certList);
+                } catch (Exception e) {
+                    System.out.println("Certificate chain is not valid");
+                    isVerified = false;
+                }
+                if (isVerified) {
+                    System.out.println("Ticket request from " + ticketRequest.getAliasBuyer());
+                    System.out.println("Ticket details: " + ticket);
+                    System.out.println("Quantity: " + ticketRequest.getQuantity());
+                    System.out.println("Price: " + ticket.getTicketPrice() * ticketRequest.getQuantity());
+                    String accept = InputHelper.getStringInput("Accept? (y/n): ");
+                    if (accept.equalsIgnoreCase("y")) {
+                        String ticketCode = InputHelper.getStringInput("Enter ticket code: ");
+                        rsa.setPeerPublicKey(ticketRequest.getPublicKey());
+                        //Encrypting ticket code
+                        String ticketCodeEncrypted = rsa.encrypt(ticketCode);
+                        ticket.setTicketCode(ticketCodeEncrypted);
+                        if (simulatePayment(ticket.getTicketPrice() * ticketRequest.getQuantity(), ticket.getTicketOwner())) {
+                            ticket.setQuantity(ticket.getQuantity() - ticketRequest.getQuantity());
+                            ticket.setTicketOwner(currentUser);
+                            ticketRepository.save(ticket);
+                            ticketRequestRepository.delete(ticketRequest);
+                            System.out.println("Ticket sold successfully");
+                        }
+                    } else {
+                        ticketRequestRepository.delete(ticketRequest);
+                    }
+                } else {
+                    System.out.println("Invalid public key");
+                    ticketRequestRepository.delete(ticketRequest);
+                }
+            }
+        }
+        goToMenu();
+    }
+
     public void addEvent() throws GeneralSecurityException {
         System.out.println("**************************Add Event***************************");
         String eventName = InputHelper.getStringInput("Enter event name: ");
@@ -313,11 +406,12 @@ public class AppSession {
         goToMenu();
     }
 
-
     public void registerUser() throws GeneralSecurityException {
+        System.out.println("**************************Register User***************************");
         currentUser = new Users();
-        currentUser.setFirstName(InputHelper.getStringInput("Enter first name: "));
+        /*currentUser.setFirstName(InputHelper.getStringInput("Enter first name: "));
         currentUser.setLastName(InputHelper.getStringInput("Enter last name: "));
+         */
         String email = InputHelper.getStringInput("Enter email: ");
         if (userRepository.findByEmail(email).size() > 0 || !InputHelper.validateEmail(email)) {
             System.out.println("Email already exists or invalid email");
@@ -326,14 +420,24 @@ public class AppSession {
         }
         currentUser.setEmail(email);
         currentUser.setPassword(InputHelper.getStringInput("Enter password: "));
-        currentUser.setAddress(InputHelper.getStringInput("Enter address: "));
+        keyPassword = currentUser.getPassword() + "111111111111";
+        /*currentUser.setAddress(InputHelper.getStringInput("Enter address: "));
         currentUser.setCity(InputHelper.getStringInput("Enter city: "));
         currentUser.setCountry(InputHelper.getStringInput("Enter country: "));
         currentUser.setPostalCode(InputHelper.getStringInput("Enter zip code: "));
         currentUser.setPhoneNumber(InputHelper.getStringInput("Enter phone number: "));
+         */
         currentUser.setSalt("salt");
         currentUser.setPassword(hashPassword(currentUser.getPassword() + currentUser.getSalt()));
         setAdministrator(currentUser.getEmail());
+        if (!isAdministrator) {
+            rsa.generateKeys();
+            currentUser.setPublicKey(rsa.getPublicKeyString());
+            currentUser.setPrivateKey(rsa.getPrivateKeyString());
+        }
+        userRepository.save(currentUser);
+        Users user = userRepository.findByEmail(currentUser.getEmail()).get(0);
+        System.out.println("The private key is: " + user.getPrivateKey());
         System.out.println("User registered successfully");
         userMenu();
     }
@@ -379,6 +483,8 @@ public class AppSession {
                         } else if (inputCode.equals(code)) {
                             currentUser = user;
                             System.out.println("Login successful");
+                            rsa.setPrivateKeyString(currentUser.getPrivateKey());
+                            rsa.setPublicKeyString(currentUser.getPublicKey());
                             userMenu();
                         } else {
                             System.out.println("Invalid code");
@@ -404,10 +510,9 @@ public class AppSession {
     public void setAdministrator(String email) {
         if (email.endsWith("@ticketswap.com")) {
             currentUser.setUserType(UserType.ADMIN);
-            userRepository.save(currentUser);
+            isAdministrator = true;
         } else {
             currentUser.setUserType(UserType.CUSTOMER);
-            userRepository.save(currentUser);
         }
     }
 
@@ -422,10 +527,12 @@ public class AppSession {
     public void userMenu() throws GeneralSecurityException {
         System.out.println(
                         " 1. Search Events \n" +
-                        " 2. Sell Ticket \n" +
+                        " 2. Upload Ticket \n" +
                         " 3. Buy Ticket \n" +
                         " 4. Logout User \n" +
-                        " 5. My Tickets" );
+                        " 5. Send Requested Ticket \n" +
+                        " 6. My Tickets" +
+                        " 7. Main Menu \n");
         boolean exit = false;
         while (!exit) {
             exit = true;
@@ -436,7 +543,7 @@ public class AppSession {
                     break;
                 case 2:
                     displayEvents(searchEvent(false));
-                    sellTicket(selectEvent());
+                    uploadTicket(selectEvent());
                     break;
                 case 3:
                     displayEvents(searchEvent(false));
@@ -446,7 +553,13 @@ public class AppSession {
                     logOut();
                     break;
                 case 5:
+                    sellTicket();
+                    break;
+                case 6:
                     myTickets();
+                    goToMenu();
+                    break;
+                case 7:
                     goToMenu();
                     break;
                 default:
@@ -455,7 +568,6 @@ public class AppSession {
                     break;
             }
         }
-
     }
 
     public void adminMenu() throws GeneralSecurityException {
@@ -463,7 +575,8 @@ public class AppSession {
                         " 1. Search Events \n" +
                         " 2. Logout User \n" +
                         " 3. Add Event \n" +
-                        " 4. Remove Event \n");
+                        " 4. Remove Event \n" +
+                        " 5. Main Menu \n");
         boolean exit = false;
         while (!exit) {
             exit = true;
@@ -480,6 +593,9 @@ public class AppSession {
                     break;
                 case 4:
                     removeEvent();
+                    break;
+                case 5:
+                    goToMenu();
                     break;
                 default:
                     System.out.println("Invalid choice");

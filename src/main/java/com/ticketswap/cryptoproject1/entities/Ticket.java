@@ -28,5 +28,7 @@ public class Ticket {
 
     private int quantity;
 
+    private boolean canBeSold;
+
 
 }

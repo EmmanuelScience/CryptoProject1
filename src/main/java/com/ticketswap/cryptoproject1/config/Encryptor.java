@@ -1,10 +1,10 @@
 package com.ticketswap.cryptoproject1.config;
 
+import com.ticketswap.cryptoproject1.AppSession;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.util.SerializationUtils;
-
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.SecretKeySpec;
@@ -24,6 +24,10 @@ public class Encryptor implements AttributeConverter<Object, String>{
 
     private  Key key;
     private  Cipher cipher;
+
+    public Encryptor() throws NoSuchPaddingException, NoSuchAlgorithmException {
+        this.keyEncrypt  = AppSession.keyPassword;
+    }
 
     private  Key getKey() {
         if (key == null) key = new SecretKeySpec(keyEncrypt.getBytes(), cipherEncrypt);
@@ -46,13 +50,16 @@ public class Encryptor implements AttributeConverter<Object, String>{
         cipherInit(Cipher.ENCRYPT_MODE);
         byte[] bytes = SerializationUtils.serialize(attribute);
         assert bytes != null;
-        return Base64.getEncoder().encodeToString(getCipher().doFinal(bytes));
+        String encrypted = Base64.getEncoder().encodeToString(getCipher().doFinal(bytes));
+        System.out.println("Encrypted: " + encrypted + "\nlength: " + encrypted.length());
+        return encrypted;
     }
 
     @SneakyThrows
     @Override
     public Object convertToEntityAttribute(String dbData) {
         if (dbData == null)return null;
+        System.out.println("Decrypted: " + dbData + "\nlength: " + dbData.length());
         cipherInit(Cipher.DECRYPT_MODE);
         byte[] bytes = getCipher().doFinal(Base64.getDecoder().decode(dbData));
         return SerializationUtils.deserialize(bytes);
