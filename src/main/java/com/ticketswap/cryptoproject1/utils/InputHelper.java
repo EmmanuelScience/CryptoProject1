@@ -128,6 +128,9 @@ public class InputHelper {
             boolean valid = filterSqlInjection(inputString);
             if (valid) {
                 return inputString;
+            } else if (message.contains("%2B")) {
+                System.out.println("Invalid input, please try again");
+                return getStringInput(message);
             } else {
                 System.out.println("Invalid input");
                 return getStringInput(message);

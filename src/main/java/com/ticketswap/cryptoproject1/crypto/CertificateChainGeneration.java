@@ -1,4 +1,4 @@
-package com.ticketswap.cryptoproject1.config;
+package com.ticketswap.cryptoproject1.crypto;
 
 import lombok.SneakyThrows;
 import sun.security.tools.keytool.CertAndKeyGen;
@@ -12,11 +12,9 @@ import javax.crypto.spec.PBEParameterSpec;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.security.AlgorithmParameters;
-import java.security.Principal;
-import java.security.PrivateKey;
-import java.security.SecureRandom;
+import java.security.*;
 import java.security.cert.X509Certificate;
+import java.util.List;
 
 public class CertificateChainGeneration {
     public static void main(String[] args){
@@ -44,6 +42,7 @@ public class CertificateChainGeneration {
             //write private key to file
             byte[] encryptedPrivateKey = encryptPrivateKey(topPrivateKey, "password");
             writeKeyToFile(encryptedPrivateKey, "C:\\chomsky\\Academics\\Fall-2022\\crypto\\CryptoProject1\\src\\A\\top.key");
+            writeKeyToFile(encryptedPrivateKey, "C:\\chomsky\\Academics\\Fall-2022\\crypto\\CryptoProject1\\src\\main\\java\\com\\ticketswap\\cryptoproject1\\emailServer\\encryptedPrivateKey.key");
 
             X509Certificate topCertificate = keyGen2.getSelfCertificate(new X500Name("CN=TOP"), (long) 365 * 24 * 60 * 60);
 
@@ -61,6 +60,9 @@ public class CertificateChainGeneration {
             chain[0]=topCertificate;
             chain[1]=middleCertificate;
             chain[2]=rootCertificate;
+
+            //verify certificate chain
+            DigitalSignature.verifyChain(List.of(chain));
 
             //System.out.println(Arrays.toString(chain));
         }catch(Exception ex){
@@ -100,17 +102,19 @@ public class CertificateChainGeneration {
         return  encinfo.getEncoded();
     }
 
-    private static X509Certificate createSignedCertificate(X509Certificate cetrificate,X509Certificate issuerCertificate,PrivateKey issuerPrivateKey){
+    private static X509Certificate createSignedCertificate(X509Certificate certificate,
+                                                           X509Certificate issuerCertificate,
+                                                           PrivateKey issuerPrivateKey){
         try{
             Principal issuer = issuerCertificate.getSubjectDN();
             String issuerSigAlg = issuerCertificate.getSigAlgName();
 
-            byte[] inCertBytes = cetrificate.getTBSCertificate();
+            byte[] inCertBytes = certificate.getTBSCertificate();
             X509CertInfo info = new X509CertInfo(inCertBytes);
             info.set(X509CertInfo.ISSUER, (X500Name) issuer);
 
             //No need to add the BasicContraint for leaf cert
-            if(!cetrificate.getSubjectDN().getName().equals("CN=TOP")){
+            if(!certificate.getSubjectDN().getName().equals("CN=TOP")){
                 CertificateExtensions exts=new CertificateExtensions();
                 BasicConstraintsExtension bce = new BasicConstraintsExtension(true, -1);
                 exts.set(BasicConstraintsExtension.NAME,new BasicConstraintsExtension(false, bce.getExtensionValue()));

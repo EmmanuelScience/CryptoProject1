@@ -29,9 +29,7 @@ dependencies {
     providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     implementation 'javax.mail:mail:1.4.7'
-    implementation 'org.mongodb:mongodb-driver:3.6.3'
-    implementation 'org.springframework.data:spring-data-mongodb:2.0.6.RELEASE'
-    implementation group: 'org.mongodb', name: 'mongo-java-driver', version: '3.6.3'
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
 }
 
 compileJava {     options.compilerArgs << '--add-exports=java.base/sun.security.x509=ALL-UNNAMED' }

@@ -1,6 +1,6 @@
 package com.ticketswap.cryptoproject1.entities;
 
-import com.ticketswap.cryptoproject1.config.Encryptor;
+import com.ticketswap.cryptoproject1.crypto.Encryptor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 

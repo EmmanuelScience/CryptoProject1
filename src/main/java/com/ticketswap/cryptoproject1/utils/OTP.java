@@ -1,4 +1,4 @@
-package com.ticketswap.cryptoproject1.config;
+package com.ticketswap.cryptoproject1.utils;
 
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;

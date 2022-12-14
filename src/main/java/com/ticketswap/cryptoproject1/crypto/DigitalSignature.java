@@ -1,4 +1,4 @@
-package com.ticketswap.cryptoproject1.config;
+package com.ticketswap.cryptoproject1.crypto;
 
 import lombok.SneakyThrows;
 
@@ -6,27 +6,19 @@ import javax.crypto.Cipher;
 import javax.crypto.EncryptedPrivateKeyInfo;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.*;
 import java.security.cert.*;
 import java.security.cert.Certificate;
 import java.security.spec.KeySpec;
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 public class DigitalSignature {
-    @SneakyThrows
-    public static void main(String[] args) {
-        byte[] signature = generateSignatureForMessage("C:\\chomsky\\Academics\\Fall-2022\\crypto\\CryptoProject1\\src\\A\\top.key", "Hello", "password");
-        boolean verified = verifySignature("C:\\chomsky\\Academics\\Fall-2022\\crypto\\CryptoProject1\\src\\A\\top.crt", signature, "Hello".getBytes());
-        byte[] certificate = readCertFromFile("C:\\chomsky\\Academics\\Fall-2022\\crypto\\CryptoProject1\\src\\A\\top.crt").getEncoded();
-        boolean verified1 = verifySignature(certificate, signature, "Hello".getBytes());
-        System.out.println(verified1);
-    }
 
     public static byte[] generateSignatureForMessage(String privateKeyPath, String message, String password) throws Exception {
         PrivateKey privateKey = readKeyFromFile(privateKeyPath, password);
@@ -83,27 +75,17 @@ public class DigitalSignature {
     }
 
     @SneakyThrows
-    public static CertPathValidatorResult verifyCertificateChain(List<X509Certificate> certificateChain) {
-        // Create a CertificateFactory for X.509 certificates
-        CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
-
-        // Create a TrustAnchor for the root certificate
-        X509Certificate rootCertificate = certificateChain.get(0);
-        TrustAnchor trustAnchor = new TrustAnchor(rootCertificate, null);
-
-        // Create a CertPathValidator for X.509 certificates
-        CertPathValidator certPathValidator = CertPathValidator.getInstance("PKIX");
-
-        // Create a CertPath from the certificate chain
-        CertPath certPath = certificateFactory.generateCertPath(certificateChain);
-
-        // Create a PKIXParameters object with the TrustAnchor
-        PKIXParameters pkixParameters = new PKIXParameters(Collections.singleton(trustAnchor));
-
-        // Set the revocation checking mode to be off
-        pkixParameters.setRevocationEnabled(false);
-
-        // Validate the certificate chain
-        return certPathValidator.validate(certPath, pkixParameters);
+    public static void verifyChain(List<X509Certificate> chain){
+        // Loop over the certificates in the chain
+        for (int i = 0; i < chain.size(); i++) {
+            X509Certificate cert = (X509Certificate) chain.get(i);
+            // check if the certificate was/is valid
+            cert.checkValidity();
+            // check if the previous certificate was issued by this certificate
+            if (i > 0)
+                chain.get(i - 1).verify(chain.get(i).getPublicKey());
+        }
+        System.out.println("All certificates are valid");
     }
+
 }

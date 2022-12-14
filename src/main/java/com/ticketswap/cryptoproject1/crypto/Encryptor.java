@@ -1,4 +1,4 @@
-package com.ticketswap.cryptoproject1.config;
+package com.ticketswap.cryptoproject1.crypto;
 
 import com.ticketswap.cryptoproject1.AppSession;
 import lombok.SneakyThrows;
@@ -25,7 +25,7 @@ public class Encryptor implements AttributeConverter<Object, String>{
     private  Key key;
     private  Cipher cipher;
 
-    public Encryptor() throws NoSuchPaddingException, NoSuchAlgorithmException {
+    public Encryptor() {
         this.keyEncrypt  = AppSession.keyPassword;
     }
 
